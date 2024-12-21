@@ -1,4 +1,3 @@
-import xlsx from 'xlsx';
 import {
 	Document,
 	Packer,
@@ -12,6 +11,7 @@ import {
 } from 'docx';
 import mammoth from 'mammoth';
 import puppeteer from 'puppeteer';
+const XLSX = require('xlsx');
 
 /**
  * @typedef {Object} InspectionData
@@ -65,10 +65,10 @@ export function validateFields(json, fields) {
  */
 export function convertExcelToJSON(filePath) {
 	try {
-		const workbook = xlsx.readFile(filePath);
+		const workbook = XLSX.readFile(filePath);
 		const sheetName = workbook.SheetNames[0];
 		const worksheet = workbook.Sheets[sheetName];
-		const json = xlsx.utils.sheet_to_json(worksheet);
+		const json = XLSX.utils.sheet_to_json(worksheet);
 
 		return json;
 	} catch (error) {
@@ -249,13 +249,19 @@ async function convertDocxToPdf(docxBuffer, pdfFilePath) {
 }
 
 /**
- * Generates a PDF with a table based on dynamic dataset.
+ * Generates a PDF with a table based on a dynamic dataset.
  * Each Bridge ID appears above its table on a new page.
+ * Users can choose which columns to include in the PDF.
+ *
  * @param {string} outputFilePath - The file path to save the generated PDF.
- * @param {object} data - The data containing reports identified by their ID.
- * @returns {Promise<{ success: boolean; message: string }>} - State which represents whether the generation was a success or failure and the error message if applicable
+ * @param {object} data - The data containing reports identified by their ID. The structure is as follows:
+ *   - `data[assetName]`: An array of rows for a given asset (e.g., a bridge).
+ *   - Each row is an object where keys represent column names, and values represent the corresponding data.
+ * @param {string[]} selectedColumns - An array of column names selected by the user for inclusion in the PDF.
+ *
+ * @returns {Promise<{ success: boolean; message: string }>} - A state object that indicates whether the PDF generation was successful or not, along with the success or error message.
  */
-async function generatePDF(outputFilePath, data) {
+export async function generatePDF(outputFilePath, data, selectedColumns) {
 	const columnHeaderMap = {
 		'Bridge Component(Report)': 'Bridge Component',
 		'Repair Category(Report)': 'Repair Category',
@@ -263,9 +269,11 @@ async function generatePDF(outputFilePath, data) {
 		'Workflow Stage': 'Workflow Stage',
 	};
 
-	const columns = Object.values(data)[0]?.[0]
-		? Object.keys(Object.values(data)[0][0])
-		: [];
+	const columns =
+		selectedColumns ||
+		(Object.values(data)[0]?.[0]
+			? Object.keys(Object.values(data)[0][0])
+			: []);
 
 	function formatTextWithNewlines(text) {
 		if (!text || !String(text)) return [];
@@ -276,6 +284,10 @@ async function generatePDF(outputFilePath, data) {
 
 	const sections = Object.keys(data).map((assetName) => {
 		const assetData = data[assetName];
+
+		const filteredRows = assetData.map((rowData) => {
+			return columns.map((col) => rowData[col]);
+		});
 
 		const table = new Table({
 			rows: [
@@ -298,11 +310,11 @@ async function generatePDF(outputFilePath, data) {
 						});
 					}),
 				}),
-				...assetData.map((rowData) => {
+				...filteredRows.map((rowData) => {
 					return new TableRow({
-						children: columns.map((col) => {
+						children: rowData.map((cellData) => {
 							return new TableCell({
-								children: formatTextWithNewlines(rowData[col]),
+								children: formatTextWithNewlines(cellData),
 								verticalAlign: VerticalAlign.CENTER,
 								margins: {
 									top: convertInchesToTwip(0.05),
@@ -372,7 +384,7 @@ async function generatePDF(outputFilePath, data) {
 		});
 	} catch (error) {
 		console.log(error);
-		
+
 		return {
 			success: false,
 			message:

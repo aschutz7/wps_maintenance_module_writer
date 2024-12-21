@@ -1,25 +1,20 @@
-import { app, BrowserWindow, ipcMain, dialog } from 'electron';
+import { app, BrowserWindow, ipcMain, dialog, shell } from 'electron';
 import path from 'node:path';
 import fs from 'fs';
 import os from 'os';
 import started from 'electron-squirrel-startup';
 import { updateElectronApp, UpdateSourceType } from 'update-electron-app';
-const { shell } = require('electron');
+import {
+	validateFields,
+	convertExcelToJSON,
+	formatJSONData,
+	includeOnlyFields,
+	convertDocxToPdf,
+	generatePDF,
+} from './lib';
 
 if (started) {
 	app.quit();
-}
-
-async function createFolderIfNotExists(folderPath) {
-	try {
-		if (!fs.existsSync(folderPath)) {
-			await fs.promises.mkdir(folderPath, { recursive: true });
-		}
-	} catch (error) {
-		console.error(`Failed to create folder ${folderPath}:`, error);
-		await logErrorToFile(error);
-		throw error;
-	}
 }
 
 async function logErrorToFile(error) {
@@ -28,7 +23,7 @@ async function logErrorToFile(error) {
 		'AppData',
 		'Local',
 		'WPS Programs',
-		'File Sorter'
+		'Maintenance Module Generator'
 	);
 	const errorsPath = path.join(configDirectory, 'errors.json');
 
@@ -74,58 +69,47 @@ function generateUniqueErrorId() {
 	).toUpperCase();
 }
 
-function extractIdentifier(fileName) {
-	const cleanedFileName = fileName.replace(/[^\w\s-]/g, '').trim();
-	const normalizedFileName = cleanedFileName.replace(/-0-/g, '-');
-	const regex = /(\d{2}-\d{3}-\d{4}-\d{2}-\d{3})/;
-	const match = normalizedFileName.match(regex);
-	if (match) {
-		return match[1].replace(/-/g, '');
-	}
-	return '';
+const configDirectory = path.join(
+	os.homedir(),
+	'AppData',
+	'Local',
+	'WPS Programs',
+	'Maintenance Module Generator'
+);
+
+if (!fs.existsSync(configDirectory)) {
+	fs.mkdirSync(configDirectory, { recursive: true });
 }
 
-async function sortFilesIntoFolders(
-	files,
-	sourceFolder,
-	outputFolder,
-	setProgress,
-	mainWindow
-) {
-	for (let i = 0; i < files.length; i++) {
-		const file = files[i];
-		const filePath = path.join(sourceFolder, file.fileName);
+const configFilePath = path.join(configDirectory, 'config.json');
 
-		const stats = await fs.promises.stat(filePath);
-		if (!stats.isFile()) {
-			continue;
-		}
-
-		const identifier = extractIdentifier(file.fileName);
-
-		if (!identifier) {
-			continue;
-		}
-
-		const folderPath = path.join(outputFolder, identifier);
-		await createFolderIfNotExists(folderPath);
-
-		const destPath = path.join(folderPath, file.fileName);
-
-		try {
-			await fs.promises.rename(filePath, destPath);
-			setProgress(((i + 1) / files.length) * 100);
-			mainWindow.webContents.send(
-				'progress',
-				((i + 1) / files.length) * 100
-			);
-		} catch (error) {
-			console.error(`Failed to move file ${file.fileName}:`, error);
-			await logErrorToFile(error);
-			throw error;
-		}
+const readConfig = () => {
+	if (fs.existsSync(configFilePath)) {
+		const configData = fs.readFileSync(configFilePath, 'utf-8');
+		return JSON.parse(configData);
+	} else {
+		return { selectedColumns: [] };
 	}
-}
+};
+
+const writeConfig = (config) => {
+	if (!fs.existsSync(configDirectory)) {
+		fs.mkdirSync(configDirectory, { recursive: true });
+	}
+
+	fs.writeFileSync(configFilePath, JSON.stringify(config, null, 2), 'utf-8');
+};
+
+ipcMain.handle('get-selected-columns', () => {
+	const config = readConfig();
+	return config.selectedColumns;
+});
+
+ipcMain.handle('set-selected-columns', (event, selectedColumns) => {
+	const config = readConfig();
+	config.selectedColumns = selectedColumns;
+	writeConfig(config);
+});
 
 ipcMain.handle('check-for-updates', () => {
 	updateElectronApp();
@@ -135,109 +119,89 @@ ipcMain.on('open-external', (event, url) => {
 	shell.openExternal(url);
 });
 
-ipcMain.handle('get-config', () => {
-	const configDirectory = path.join(
-		os.homedir(),
-		'AppData',
-		'Local',
-		'WPS Programs',
-		'File Sorter'
-	);
+ipcMain.handle('selectFile', async () => {
+	const result = await dialog.showOpenDialog({
+		properties: ['openFile'],
+		filters: [{ name: 'Excel Files', extensions: ['xls', 'xlsx'] }],
+	});
 
-	if (!fs.existsSync(configDirectory)) {
-		fs.mkdirSync(configDirectory, { recursive: true });
-	}
-
-	const configPath = path.join(configDirectory, 'config.json');
-	const errorsPath = path.join(configDirectory, 'errors.json');
-
-	if (!fs.existsSync(configPath)) {
-		const defaultConfig = {
-			firstLaunch: false,
-			version: '1.0.0a',
-			lastOpened: new Date().toISOString(),
-			filesMoved: 0,
-		};
-
-		fs.writeFileSync(
-			configPath,
-			JSON.stringify(defaultConfig, null, 2),
-			'utf-8'
-		);
-		return defaultConfig;
-	}
-
-	const config = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
-	return config;
+	return result.canceled ? null : result.filePaths[0];
 });
 
-ipcMain.handle('sort-files', async (event, sourceFolder, outputFolder) => {
+ipcMain.handle('select-output-folder', async () => {
+	const result = await dialog.showOpenDialog({
+		properties: ['openDirectory'],
+	});
+
+	if (result.canceled) {
+		return null;
+	}
+	return result.filePaths[0];
+});
+
+ipcMain.handle('convertExcelToJSON', async (event, filePath) => {
 	try {
-		if (!sourceFolder) {
-			dialog.showErrorBox(
-				'Error Sorting Files',
-				'Source folder not provided'
-			);
-			return null;
-		}
-
-		if (!fs.existsSync(sourceFolder)) {
-			dialog.showErrorBox(
-				'Error Sorting Files',
-				'Source directory does not exist'
-			);
-			return null;
-		}
-
-		if (outputFolder && !fs.existsSync(outputFolder)) {
-			dialog.showErrorBox(
-				'Error Sorting Files',
-				'Output directory was provided but does not exist'
-			);
-			return null;
-		}
-
-		const files = await fs.promises.readdir(sourceFolder);
-		if (!files.length) {
-			dialog.showErrorBox(
-				'Error Sorting Files',
-				'No files found in source directory'
-			);
-			return null;
-		}
-
-		const sortedFiles = files.map((file) => ({ fileName: file }));
-		const mainWindow = BrowserWindow.getAllWindows()[0];
-		await sortFilesIntoFolders(
-			sortedFiles,
-			sourceFolder,
-			outputFolder || sourceFolder,
-			(progress) => mainWindow.webContents.send('progress', progress),
-			mainWindow
-		);
-
-		const configPath = path.join(
-			os.homedir(),
-			'AppData',
-			'Local',
-			'WPS Programs',
-			'File Sorter',
-			'config.json'
-		);
-		const config = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
-		config.filesMoved += files.length;
-		fs.writeFileSync(configPath, JSON.stringify(config, null, 2), 'utf-8');
-
-		return outputFolder || sourceFolder;
+		return formatJSONData(convertExcelToJSON(filePath));
 	} catch (error) {
-		console.error('Error in sort-files handler:', error);
-		dialog.showErrorBox(
-			'Error Sorting Files',
-			'Failed to sort the files: ' + error.message
-		);
+		console.error('Error converting Excel to JSON:', error);
 		return null;
 	}
 });
+
+ipcMain.handle('get-config', () => {
+	try {
+		if (!fs.existsSync(configFilePath)) {
+			const defaultConfig = {
+				selectedColumns: [],
+			};
+			fs.writeFileSync(
+				configFilePath,
+				JSON.stringify(defaultConfig, null, 2),
+				'utf-8'
+			);
+		}
+
+		const configData = fs.readFileSync(configFilePath, 'utf-8');
+		return JSON.parse(configData);
+	} catch (error) {
+		console.error('Error loading config:', error);
+		return null;
+	}
+});
+
+ipcMain.handle('set-config', (event, config) => {
+	try {
+		fs.writeFileSync(
+			configFilePath,
+			JSON.stringify(config, null, 2),
+			'utf-8'
+		);
+	} catch (error) {
+		console.error('Error saving config:', error);
+	}
+});
+
+ipcMain.handle(
+	'generate-pdf',
+	async (event, excelFilePath, outputFile, selectedColumns) => {
+		try {
+			const jsonData = await convertExcelToJSON(excelFilePath);
+			const formattedData = formatJSONData(jsonData);
+
+			const filteredData = includeOnlyFields(
+				formattedData,
+				selectedColumns
+			);
+
+			await generatePDF(outputFile, filteredData, selectedColumns);
+
+			return { success: true, message: 'PDF generated successfully!' };
+		} catch (error) {
+			console.error('Error generating PDF:', error);
+			return { success: false, message: error.message };
+		}
+	}
+);
 
 const createWindow = () => {
 	const mainWindow = new BrowserWindow({
@@ -245,8 +209,8 @@ const createWindow = () => {
 		height: 600,
 		webPreferences: {
 			preload: MAIN_WINDOW_PRELOAD_WEBPACK_ENTRY,
+			nodeIntegration: true,
 			contextIsolation: true,
-			nodeIntegration: false,
 		},
 		autoHideMenuBar: true,
 		icon: __dirname + '/icon.ico',
@@ -261,7 +225,7 @@ app.whenReady().then(() => {
 		notifyUser: true,
 		updateSource: {
 			type: UpdateSourceType.ElectronPublicUpdateService,
-			repo: 'aschutz7/wps_file_sorter',
+			repo: 'aschutz7/wps_maintenance_module_generator',
 			host: 'https://update.electronjs.org',
 		},
 	});

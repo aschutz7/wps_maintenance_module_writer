@@ -9,52 +9,65 @@ export default function Instructions() {
 				<header className='text-center mb-8'>
 					<h1 className='text-4xl font-bold mb-2'>Instructions</h1>
 					<p className='text-lg'>
-						Learn how to use the WPS File Sorter
+						Learn how to use the WPS Maintenance Module Generator
 					</p>
 				</header>
 				<main className='max-w-4xl mx-auto space-y-6'>
 					<section>
 						<h2 className='text-2xl font-semibold mb-2'>
-							Step 1: Choose Folder(s)
+							Step 1: Upload Your Excel File
 						</h2>
 						<p>
-							Select the folder containing the files you want to
-							organize.
-							<br />
-							Optionally: if you want to, you can specify an
-							output folder. If it is not provided, the files will
-							be organized into files in the source directory.
+							Begin by selecting the Excel file containing the
+							maintenance-related description data you want to
+							format into a PDF.
+						</p>
+						<p className='text-sm text-gray-400'>
+							The file should have column headers that can be
+							selected for inclusion in the final PDF.
 						</p>
 					</section>
+
 					<section>
 						<h2 className='text-2xl font-semibold mb-2'>
-							Step 2: Sort Your Files
+							Step 2: Select Columns to Include
 						</h2>
 						<p>
-							Click the sort button to begin the process. The
-							sorter will move the files into newly created
-							folders based on their extracted identifiers.
+							After uploading your file, choose the columns you
+							want to include in the PDF by checking the boxes
+							next to each column.
+						</p>
+						<p className='text-sm text-gray-400'>
+							You can save your selected columns for future use or
+							load previously saved selections.
 						</p>
 					</section>
+
 					<section>
 						<h2 className='text-2xl font-semibold mb-2'>
-							That&apos;s it!
+							Step 3: Select Output Folder and Generate PDF
 						</h2>
 						<p>
-							If an error occurs, please notify someone from WPS
-							Engineering of this issue including information such
-							as a screenshot of the error message and a brief
-							description of what you were doing that caused the
-							error.
+							Choose the folder where you want to save the
+							generated PDF. Once you're ready, click the
+							"Generate PDF" button to create your formatted
+							maintenance description PDF.
+						</p>
+						<p className='text-sm text-gray-400'>
+							Make sure to save your output file path before
+							generating the PDF.
 						</p>
 					</section>
+
 					<footer className='text-center mt-8'>
 						<p>Ready to get started?</p>
 						<button
-							onClick={() => (window.location.href = '#/sorter')}
-							className='bg-green-500 hover:bg-green-600 text-white py-2 px-4 rounded shadow-lg mt-2'
+							onClick={() =>
+								(window.location.href = '#/generator')
+							}
+							className='bg-blue-500 hover:bg-blue-600 text-white py-2 px-4 rounded shadow-lg mt-2'
 						>
-							Start Sorting
+							Start Generating
 						</button>
 					</footer>
 				</main>

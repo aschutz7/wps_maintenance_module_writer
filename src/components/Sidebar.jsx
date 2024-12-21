@@ -1,6 +1,6 @@
 import React, { useState, useCallback } from 'react';
 import { Link } from 'react-router-dom';
-import { Menu, X, Home, Info, Folder, Bug } from 'lucide-react';
+import { Menu, X, Home, Info, FileText, Bug } from 'lucide-react';
 
 const openBugReport = () => {
 	window.electron.openExternal('https://forms.gle/iCbg2LCn6wWU9fsS8');
@@ -11,6 +11,7 @@ const Sidebar = ({ width = 175, isCollapsible = true, className = '' }) => {
 	const [sidebarWidth, setSidebarWidth] = useState(width);
 	const [isResizing, setIsResizing] = useState(false);
 	const [isModalOpen, setIsModalOpen] = useState(false);
+
 	const toggleSidebar = () => {
 		if (isCollapsible) {
 			setIsOpen(!isOpen);
@@ -110,13 +111,13 @@ const Sidebar = ({ width = 175, isCollapsible = true, className = '' }) => {
 						)}
 					</Link>
 					<Link
-						to='/sorter'
+						to='/generator'
 						className='text-white hover:text-blue-400 flex items-center space-x-2'
 					>
-						<Folder size={24} />
+						<FileText size={24} />
 						{isOpen && (
 							<span className='text-lg font-bold'>
-								File Sorter
+								Generator
 							</span>
 						)}
 					</Link>
