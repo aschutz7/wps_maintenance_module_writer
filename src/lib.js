@@ -170,63 +170,67 @@ async function convertDocxToPdf(docxBuffer, pdfFilePath) {
 			);
 
 		const styledHtml = `
-        <html>
-        <head>
-            <style>
-                body {
-                    font-family: Arial, sans-serif;
-                    margin: 20px;
-                }
-                table {
-                    width: 100%;
-                    border-collapse: collapse;
-                    margin-top: 25px;
-                    margin-bottom: 20px;
-                }
-                th, td {
-                    border: 1px solid #000000;
-                    padding: 8px;
-                }
-                th {
-                    background-color: #f2f2f2;
-                    text-align: left;
-                }
-                p {
-                    margin: 5px 0;
-                }
-                .bridge-section {
-                    margin-bottom: 20px;
-                }
-                .bridge-id {
-                    margin-bottom: 35px;
-                    display: block;
-                }
-            </style>
-        </head>
-        <body>
-            ${sections
-				.map((section, index) => {
-					const formattedSection = section
-						.trim()
-						.replace(
-							/(Bridge ID:[^<]*)/,
-							'<span class="bridge-id">$1</span>'
-						);
+			<html>
+			<head>
+				<style>
+					body {
+						font-family: Arial, sans-serif;
+						margin: 20px;
+					}
+					table {
+						width: 100%;
+						border-collapse: collapse;
+						margin-top: 25px;
+						margin-bottom: 20px;
+						table-layout: fixed;
+					}
+					th, td {
+						border: 1px solid #000000;
+						padding: 8px;
+						text-align: left;
+						overflow-wrap: break-word;
+						word-wrap: break-word;
+						word-break: break-word;
+					}
+					th {
+						background-color: #f2f2f2;
+					}
+					th.description-issue {
+						width: 33.33%; /* Ensure this column takes at least 1/3 of the table width */
+					}
+					.bridge-section {
+						margin-bottom: 20px;
+					}
+					.bridge-id {
+						margin-bottom: 35px;
+						display: block;
+					}
+				</style>
+			</head>
+			<body>
+				${sections
+					.map((section, index) => {
+						const formattedSection = section
+							.trim()
+							.replace(
+								/(Bridge ID:[^<]*)/,
+								'<span class="bridge-id">$1</span>'
+							);
 
-					return `
-                    <div class="bridge-section" ${
-						index < sections.length - 1
-							? 'style="page-break-after: always;"'
-							: ''
-					}>
-                        ${formattedSection}
-                    </div>
-                `;
-				})
-				.join('')}
-        </body>
-        </html>
-        `;
+						return `
+						<div class="bridge-section" ${
+							index < sections.length - 1
+								? 'style="page-break-after: always;"'
+								: ''
+						}>
+							${formattedSection}
+						</div>
+					`;
+					})
+					.join('')}
+			</body>
+			</html>
+			`;
 
 		const browser = await puppeteer.launch();
 		const page = await browser.newPage();

@@ -1,4 +1,4 @@
-import React  from 'react';
+import React from 'react';
 import Sidebar from './Sidebar.jsx';
 
 export default function Home() {
@@ -10,7 +10,7 @@ export default function Home() {
 					<h1 className='text-5xl font-bold'>
 						WPS Engineering LLC
 						<br />
-						Maintenance Module PDF Generator
+						FUA Sorter
 					</h1>
 				</header>
 
@@ -27,7 +27,7 @@ export default function Home() {
 						onClick={() => (window.location.href = '#/generator')}
 						className='bg-blue-500 hover:bg-blue-600 text-white py-2 px-4 rounded shadow-lg'
 					>
-						Start Generating
+						Start Sorting
 					</button>
 				</div>
 			</div>

@@ -1,6 +1,6 @@
 {
 	"name": "wps_maintenance_module_generator",
-	"productName": "WPS Maintenance Module Generator",
+	"productName": "FUA Sorter",
 	"version": "1.0.0",
 	"description": "A tool for generating and formatting maintenance reports into professional PDFs for civil engineering projects. It organizes data into structured tables and ensures consistent, clear documentation.",
 	"main": ".webpack/main",
@@ -28,6 +28,7 @@
 		"@vercel/webpack-asset-relocator-loader": "^1.7.3",
 		"autoprefixer": "^10.4.20",
 		"babel-loader": "^9.2.1",
+		"bufferutil": "^4.0.8",
 		"cross-env": "^7.0.3",
 		"css-loader": "^6.11.0",
 		"dotenv": "^16.4.7",
@@ -36,7 +37,9 @@
 		"postcss": "^8.4.49",
 		"postcss-loader": "^8.1.1",
 		"style-loader": "^3.3.4",
-		"tailwindcss": "^3.4.16"
+		"tailwindcss": "^3.4.16",
+		"typescript": "^5.7.2",
+		"utf-8-validate": "^6.0.5"
 	},
 	"keywords": [],
 	"author": "WPS Engineering LLC",

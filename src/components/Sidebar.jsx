@@ -116,9 +116,7 @@ const Sidebar = ({ width = 175, isCollapsible = true, className = '' }) => {
 					>
 						<FileText size={24} />
 						{isOpen && (
-							<span className='text-lg font-bold'>
-								Generator
-							</span>
+							<span className='text-lg font-bold'>Sorter</span>
 						)}
 					</Link>
 

@@ -12,15 +12,25 @@ export default function Generator() {
 	const loadSavedColumns = async () => {
 		const savedColumns = await window.electron.loadConfig();
 		if (Array.isArray(savedColumns)) {
-			setSelectedColumns(savedColumns);
+			const sortedSelection = savedColumns.sort(
+				(a, b) =>
+					availableColumns.indexOf(a) - availableColumns.indexOf(b)
+			);
+			setSelectedColumns(sortedSelection);
+			alert('Saved columns loaded successfully!');
 		} else {
+			alert('No saved columns found.');
 			setSelectedColumns([]);
 		}
 	};
 
 	const saveSelectedColumns = async () => {
-		await window.electron.saveConfig(selectedColumns);
-		alert('Selected columns have been saved!');
+		if (selectedColumns.length > 0) {
+			await window.electron.saveConfig(selectedColumns);
+			alert('Selected columns have been saved!');
+		} else {
+			alert('No columns selected to save.');
+		}
 	};
 
 	const handleFileChange = async () => {
@@ -40,15 +50,6 @@ export default function Generator() {
 				setAvailableColumns([]);
 			}
 		}
-	};
-
-	const handleColumnSelection = (column) => {
-		setSelectedColumns((prev) => {
-			const newSelectedColumns = prev.includes(column)
-				? prev.filter((item) => item !== column)
-				: [...prev, column];
-			return newSelectedColumns;
-		});
 	};
 
 	const handleGenerate = async () => {
@@ -81,8 +82,21 @@ export default function Generator() {
 		const folderPath = await window.electron.selectOutputFolder();
 		if (folderPath) {
 			const outputFileName = 'maintenance_report.pdf';
-			setOutputFile(`${folderPath}/${outputFileName}`);
+			setOutputFile(`${folderPath}\\${outputFileName}`);
 		}
+	};
+
+	const handleColumnSelection = (column) => {
+		setSelectedColumns((prev) => {
+			const isSelected = prev.includes(column);
+			const updatedSelection = isSelected
+				? prev.filter((item) => item !== column)
+				: [...prev, column];
+			return updatedSelection.sort(
+				(a, b) =>
+					availableColumns.indexOf(a) - availableColumns.indexOf(b)
+			);
+		});
 	};
 
 	const isGenerateDisabled =
@@ -90,7 +104,7 @@ export default function Generator() {
 
 	const getDisabledMessage = () => {
 		if (!excelFile) return 'Please select an Excel file.';
-		if (!outputFile) return 'Please select an output folder.';
+		if (!outputFile) return 'Please select an output location.';
 		if (selectedColumns.length === 0)
 			return 'Please select at least one column.';
 		return '';
@@ -131,6 +145,40 @@ export default function Generator() {
 						<label className='block mb-2 text-lg'>
 							Select Columns to Include
 						</label>
+
+						{excelFile && availableColumns.length > 0 && (
+							<div className='flex items-center gap-4 mb-4'>
+								<button
+									onClick={() =>
+										setSelectedColumns([
+											...availableColumns,
+										])
+									}
+									className='py-2 px-4 rounded bg-green-500 text-white hover:bg-green-600'
+								>
+									Select All
+								</button>
+								<button
+									onClick={() => setSelectedColumns([])}
+									className='py-2 px-4 rounded bg-red-500 text-white hover:bg-red-600'
+								>
+									Clear Selection
+								</button>
+								<button
+									onClick={saveSelectedColumns}
+									className='py-2 px-4 rounded bg-blue-500 text-white hover:bg-blue-600'
+								>
+									Save Selection
+								</button>
+								<button
+									onClick={loadSavedColumns}
+									className='py-2 px-4 rounded bg-yellow-500 text-white hover:bg-yellow-600'
+								>
+									Load Saved
+								</button>
+							</div>
+						)}
+
 						<div className='space-y-2'>
 							{availableColumns.length > 0 ? (
 								availableColumns.map((column) => (
@@ -160,26 +208,9 @@ export default function Generator() {
 						</div>
 					</div>
 
-					{availableColumns.length > 0 && (
-						<div className='flex space-x-4'>
-							<button
-								onClick={saveSelectedColumns}
-								className='py-2 px-4 rounded bg-green-500 text-white hover:bg-green-600'
-							>
-								Save Selected Columns
-							</button>
-							<button
-								onClick={loadSavedColumns}
-								className='py-2 px-4 rounded bg-blue-500 text-white hover:bg-blue-600'
-							>
-								Load Saved Columns
-							</button>
-						</div>
-					)}
-
 					<div>
 						<label className='block mb-2 text-lg'>
-							Select Output File
+							Select Output Location
 						</label>
 						<div className='flex space-x-4'>
 							<input
