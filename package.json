@@ -1,7 +1,7 @@
 {
 	"name": "wps_maintenance_module_generator",
 	"productName": "FUA Sorter",
-	"version": "1.0.0",
+	"version": "1.0.3",
 	"description": "A tool for generating and formatting maintenance reports into professional PDFs for civil engineering projects. It organizes data into structured tables and ensures consistent, clear documentation.",
 	"main": ".webpack/main",
 	"scripts": {

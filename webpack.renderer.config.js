@@ -21,4 +21,7 @@ module.exports = {
 	module: {
 		rules,
 	},
+	externals: {
+		xlsx: 'commonjs xlsx',
+	},
 };

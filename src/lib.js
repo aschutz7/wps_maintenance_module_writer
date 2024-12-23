@@ -170,54 +170,59 @@ async function convertDocxToPdf(docxBuffer, pdfFilePath) {
 			);
 
 		const styledHtml = `
-			<html>
-			<head>
-				<style>
-					body {
-						font-family: Arial, sans-serif;
-						margin: 20px;
-					}
-					table {
-						width: 100%;
-						border-collapse: collapse;
-						margin-top: 25px;
-						margin-bottom: 20px;
-						table-layout: fixed;
-					}
-					th, td {
-						border: 1px solid #000000;
-						padding: 8px;
-						text-align: left;
-						overflow-wrap: break-word;
-						word-wrap: break-word;
-						word-break: break-word;
-					}
-					th {
-						background-color: #f2f2f2;
-					}
-					th.description-issue {
-						width: 33.33%; /* Ensure this column takes at least 1/3 of the table width */
-					}
-					.bridge-section {
-						margin-bottom: 20px;
-					}
-					.bridge-id {
-						margin-bottom: 35px;
-						display: block;
-					}
-				</style>
-			</head>
-			<body>
-				${sections
-					.map((section, index) => {
-						const formattedSection = section
-							.trim()
-							.replace(
-								/(Bridge ID:[^<]*)/,
-								'<span class="bridge-id">$1</span>'
-							);
+		<html>
+		<head>
+			<style>
+				body {
+					font-family: Arial, sans-serif;
+					margin: 20px;
+				}
+				table {
+					width: 100%;
+					border-collapse: collapse;
+					margin-top: 25px;
+					margin-bottom: 20px;
+					table-layout: fixed; /* Ensures the table layout respects column widths */
+				}
+				th, td {
+					border: 1px solid #000000;
+					padding: 8px;
+					text-align: left;
+					overflow-wrap: break-word;
+					word-wrap: break-word;
+					word-break: break-word;
+				}
+				th {
+					background-color: #f2f2f2;
+				}
+				/* Ensure the description column is 1/3 of the table width */
+				th.description-issue, td.description-issue {
+					width: 33.33%; /* 1/3 of the table width */
+				}
+				/* Allow remaining columns to take up the remaining space */
+				th, td {
+					width: auto;
+				}
+				.bridge-section {
+					margin-bottom: 20px;
+				}
+				.bridge-id {
+					margin-bottom: 35px;
+					display: block;
+				}
+			</style>
+		</head>
+		<body>
+			${sections
+				.map((section, index) => {
+					const formattedSection = section
+						.trim()
+						.replace(
+							/(Bridge ID:[^<]*)/,
+							'<span class="bridge-id">$1</span>'
+						);
 
-						return `
+					return `
 						<div class="bridge-section" ${
 							index < sections.length - 1
 								? 'style="page-break-after: always;"'
@@ -226,11 +231,11 @@ async function convertDocxToPdf(docxBuffer, pdfFilePath) {
 							${formattedSection}
 						</div>
 					`;
-					})
-					.join('')}
-			</body>
-			</html>
-			`;
+				})
+				.join('')}
+		</body>
+		</html>
+	`;
 
 		const browser = await puppeteer.launch();
 		const page = await browser.newPage();
@@ -311,12 +316,16 @@ export async function generatePDF(outputFilePath, data, selectedColumns) {
 								left: convertInchesToTwip(0.05),
 								right: convertInchesToTwip(0.05),
 							},
+							class:
+								col === 'Description of Issue(Report)'
+									? 'description-issue'
+									: '',
 						});
 					}),
 				}),
 				...filteredRows.map((rowData) => {
 					return new TableRow({
-						children: rowData.map((cellData) => {
+						children: rowData.map((cellData, index) => {
 							return new TableCell({
 								children: formatTextWithNewlines(cellData),
 								verticalAlign: VerticalAlign.CENTER,
@@ -326,6 +335,11 @@ export async function generatePDF(outputFilePath, data, selectedColumns) {
 									left: convertInchesToTwip(0.05),
 									right: convertInchesToTwip(0.05),
 								},
+								class:
+									columns[index] ===
+									'Description of Issue(Report)'
+										? 'description-issue'
+										: '',
 							});
 						}),
 					});

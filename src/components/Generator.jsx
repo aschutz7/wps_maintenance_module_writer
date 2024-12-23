@@ -40,13 +40,30 @@ export default function Generator() {
 				const formattedData = await window.electron.convertExcelToJSON(
 					filePath
 				);
-				const columnHeaders = Object.keys(
-					formattedData[Object.keys(formattedData)[0]][0]
-				);
-				setExcelFile(filePath);
-				setAvailableColumns(columnHeaders);
+
+				if (formattedData && Object.keys(formattedData).length > 0) {
+					const firstKey = Object.keys(formattedData)[0];
+
+					const columnHeaders = Array.isArray(formattedData[firstKey])
+						? Object.keys(formattedData[firstKey][0])
+						: [];
+
+					if (columnHeaders.length > 0) {
+						setAvailableColumns(columnHeaders);
+						setExcelFile(filePath);
+					} else {
+						alert('No columns found in the Excel data.');
+						setAvailableColumns([]);
+					}
+				} else {
+					alert(
+						'Invalid or empty data returned from Excel conversion.'
+					);
+					setAvailableColumns([]);
+				}
 			} catch (error) {
 				console.error('Error during conversion or formatting:', error);
+				alert('An error occurred while fetching the Excel file');
 				setAvailableColumns([]);
 			}
 		}

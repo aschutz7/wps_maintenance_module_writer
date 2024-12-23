@@ -1,5 +1,11 @@
 const { FusesPlugin } = require('@electron-forge/plugin-fuses');
 const { FuseV1Options, FuseVersion } = require('@electron/fuses');
+const { mainConfig } = require('./webpack.main.config');
+const { rendererConfig } = require('./webpack.renderer.config');
+
+const fs = require('fs-extra');
+const path = require('path');
+const { execSync } = require('child_process');
 
 module.exports = {
 	packagerConfig: {
@@ -12,10 +18,10 @@ module.exports = {
 			config: {
 				repository: {
 					owner: 'aschutz7',
-					name: 'wps_file_sorter',
+					name: 'wps_maintenance_module_writer',
 				},
-				prerelease: false,
-				draft: true,
+				prerelease: true,
+				draft: false,
 			},
 		},
 	],
@@ -26,7 +32,7 @@ module.exports = {
 			config: {
 				icon: './src/icon.ico',
 				setupIcon: './src/icon.ico',
-				name: 'WPS_File_Sorter',
+				name: 'WPS_FUA_Sorter',
 				loadingGif: './src/loading.gif',
 			},
 		},
@@ -38,14 +44,14 @@ module.exports = {
 			name: '@electron-forge/maker-deb',
 			config: {
 				icon: './src/icon.ico',
-				name: 'WPS_File_Sorter',
+				name: 'WPS_FUA_Sorter',
 			},
 		},
 		{
 			name: '@electron-forge/maker-rpm',
 			config: {
 				icon: './src/icon.ico',
-				name: 'WPS_File_Sorter',
+				name: 'WPS_FUA_Sorter',
 			},
 		},
 	],
@@ -85,4 +91,36 @@ module.exports = {
 			[FuseV1Options.OnlyLoadAppFromAsar]: true,
 		}),
 	],
+	hooks: {
+		readPackageJson: async (forgeConfig, packageJson) => {
+			const originalPackageJson = await fs.readJson(
+				path.resolve(__dirname, 'package.json')
+			);
+
+			const externals = rendererConfig?.externals || {};
+			const neededDependencies = Object.keys(externals).reduce(
+				(acc, pkg) => {
+					if (originalPackageJson.dependencies[pkg]) {
+						acc[pkg] = originalPackageJson.dependencies[pkg];
+					}
+					return acc;
+				},
+				{}
+			);
+
+			packageJson.dependencies = {
+				...packageJson.dependencies,
+				...neededDependencies,
+			};
+
+			return packageJson;
+		},
+		packageAfterPrune: async (forgeConfig, buildPath) => {
+			try {
+				execSync('npm install --production', { cwd: buildPath });
+			} catch (error) {
+				console.error('Error during npm install:', error);
+			}
+		},
+	},
 };
