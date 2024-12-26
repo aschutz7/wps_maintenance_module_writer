@@ -17,58 +17,6 @@ if (started) {
 	app.quit();
 }
 
-async function logErrorToFile(error) {
-	const configDirectory = path.join(
-		os.homedir(),
-		'AppData',
-		'Local',
-		'WPS Programs',
-		'Maintenance Module Generator'
-	);
-	const errorsPath = path.join(configDirectory, 'errors.json');
-
-	if (!fs.existsSync(errorsPath)) {
-		const defaultErrors = [
-			{
-				date: new Date().toISOString(),
-				error: {
-					stack: 'No errors yet',
-					message: 'No errors',
-					name: 'Info',
-				},
-				errorId: '00000000-0000-0000-0000-000000000000',
-			},
-		];
-		fs.writeFileSync(
-			errorsPath,
-			JSON.stringify(defaultErrors, null, 2),
-			'utf-8'
-		);
-	}
-
-	const errors = JSON.parse(fs.readFileSync(errorsPath, 'utf-8'));
-
-	const errorLog = {
-		date: new Date().toISOString(),
-		error: {
-			stack: error.stack || 'No stack available',
-			message: error.message,
-			name: error.name || 'Unknown',
-		},
-		errorId: generateUniqueErrorId(),
-	};
-
-	errors.push(errorLog);
-
-	fs.writeFileSync(errorsPath, JSON.stringify(errors, null, 2), 'utf-8');
-}
-
-function generateUniqueErrorId() {
-	return (
-		Math.random().toString(36).substr(2, 9) + Date.now().toString(36)
-	).toUpperCase();
-}
-
 const configDirectory = path.join(
 	os.homedir(),
 	'AppData',
@@ -77,8 +25,46 @@ const configDirectory = path.join(
 	'Maintenance Module Generator'
 );
 
+const errorsPath = path.join(configDirectory, 'errors.json');
+const logPath = path.join(configDirectory, 'log.json');
+
 if (!fs.existsSync(configDirectory)) {
 	fs.mkdirSync(configDirectory, { recursive: true });
+}
+
+function logToFile(message, eventType = 'INFO') {
+	const logEntry = {
+		date: new Date().toISOString(),
+		type: eventType,
+		message,
+	};
+
+	if (!fs.existsSync(logPath)) {
+		fs.writeFileSync(logPath, JSON.stringify([logEntry], null, 2), 'utf-8');
+	} else {
+		const logs = JSON.parse(fs.readFileSync(logPath, 'utf-8'));
+		logs.push(logEntry);
+		fs.writeFileSync(logPath, JSON.stringify(logs, null, 2), 'utf-8');
+	}
+}
+
+async function logErrorToFile(error) {
+	if (!fs.existsSync(errorsPath)) {
+		fs.writeFileSync(
+			errorsPath,
+			JSON.stringify(
+				[{ date: new Date().toISOString(), error }],
+				null,
+				2
+			),
+			'utf-8'
+		);
+	} else {
+		const errors = JSON.parse(fs.readFileSync(errorsPath, 'utf-8'));
+		errors.push({ date: new Date().toISOString(), error });
+		fs.writeFileSync(errorsPath, JSON.stringify(errors, null, 2), 'utf-8');
+	}
+	logToFile(`Error logged: ${error.message}`, 'ERROR');
 }
 
 const configFilePath = path.join(configDirectory, 'config.json');
@@ -86,18 +72,17 @@ const configFilePath = path.join(configDirectory, 'config.json');
 const readConfig = () => {
 	if (fs.existsSync(configFilePath)) {
 		const configData = fs.readFileSync(configFilePath, 'utf-8');
+		logToFile('Configuration loaded.');
 		return JSON.parse(configData);
 	} else {
+		logToFile('Configuration file not found, using default.');
 		return { selectedColumns: [] };
 	}
 };
 
 const writeConfig = (config) => {
-	if (!fs.existsSync(configDirectory)) {
-		fs.mkdirSync(configDirectory, { recursive: true });
-	}
-
 	fs.writeFileSync(configFilePath, JSON.stringify(config, null, 2), 'utf-8');
+	logToFile('Configuration updated.');
 };
 
 ipcMain.handle('get-selected-columns', () => {
@@ -112,10 +97,12 @@ ipcMain.handle('set-selected-columns', (event, selectedColumns) => {
 });
 
 ipcMain.handle('check-for-updates', () => {
+	logToFile('Checking for updates.');
 	updateElectronApp();
 });
 
 ipcMain.on('open-external', (event, url) => {
+	logToFile(`Opening external URL: ${url}`);
 	shell.openExternal(url);
 });
 
@@ -124,26 +111,32 @@ ipcMain.handle('selectFile', async () => {
 		properties: ['openFile'],
 		filters: [{ name: 'Excel Files', extensions: ['xls', 'xlsx'] }],
 	});
-
-	return result.canceled ? null : result.filePaths[0];
+	if (result.canceled) {
+		logToFile('File selection canceled.');
+		return null;
+	}
+	logToFile(`File selected: ${result.filePaths[0]}`);
+	return result.filePaths[0];
 });
 
 ipcMain.handle('select-output-folder', async () => {
 	const result = await dialog.showOpenDialog({
 		properties: ['openDirectory'],
 	});
-
 	if (result.canceled) {
+		logToFile('Output folder selection canceled.');
 		return null;
 	}
+	logToFile(`Output folder selected: ${result.filePaths[0]}`);
 	return result.filePaths[0];
 });
 
 ipcMain.handle('convertExcelToJSON', async (event, filePath) => {
 	try {
+		logToFile(`Converting Excel file to JSON: ${filePath}`);
 		return formatJSONData(convertExcelToJSON(filePath));
 	} catch (error) {
-		console.error('Error converting Excel to JSON:', error);
+		await logErrorToFile(error);
 		return null;
 	}
 });
@@ -151,20 +144,18 @@ ipcMain.handle('convertExcelToJSON', async (event, filePath) => {
 ipcMain.handle('get-config', () => {
 	try {
 		if (!fs.existsSync(configFilePath)) {
-			const defaultConfig = {
-				selectedColumns: [],
-			};
+			const defaultConfig = { selectedColumns: [] };
 			fs.writeFileSync(
 				configFilePath,
 				JSON.stringify(defaultConfig, null, 2),
 				'utf-8'
 			);
 		}
-
 		const configData = fs.readFileSync(configFilePath, 'utf-8');
 		return JSON.parse(configData);
 	} catch (error) {
-		console.error('Error loading config:', error);
+		logToFile('Error loading configuration.', 'ERROR');
+		console.error(error);
 		return null;
 	}
 });
@@ -176,8 +167,9 @@ ipcMain.handle('set-config', (event, config) => {
 			JSON.stringify(config, null, 2),
 			'utf-8'
 		);
+		logToFile('Configuration saved successfully.');
 	} catch (error) {
-		console.error('Error saving config:', error);
+		logErrorToFile(error);
 	}
 });
 
@@ -185,19 +177,18 @@ ipcMain.handle(
 	'generate-pdf',
 	async (event, excelFilePath, outputFile, selectedColumns) => {
 		try {
+			logToFile(`Generating PDF for: ${excelFilePath}`);
 			const jsonData = await convertExcelToJSON(excelFilePath);
 			const formattedData = formatJSONData(jsonData);
-
 			const filteredData = includeOnlyFields(
 				formattedData,
 				selectedColumns
 			);
-
 			await generatePDF(outputFile, filteredData, selectedColumns);
-
+			logToFile('PDF generated successfully.');
 			return { success: true, message: 'PDF generated successfully!' };
 		} catch (error) {
-			console.error('Error generating PDF:', error);
+			await logErrorToFile(error);
 			return { success: false, message: error.message };
 		}
 	}
@@ -216,10 +207,12 @@ const createWindow = () => {
 		icon: __dirname + '/icon.ico',
 	});
 
+	logToFile('Main application window created.');
 	mainWindow.loadURL(MAIN_WINDOW_WEBPACK_ENTRY);
 };
 
 app.whenReady().then(() => {
+	logToFile('Application started.');
 	updateElectronApp({
 		updateInterval: '1 hour',
 		notifyUser: true,
@@ -230,7 +223,6 @@ app.whenReady().then(() => {
 		},
 	});
 	createWindow();
-
 	app.on('activate', () => {
 		if (BrowserWindow.getAllWindows().length === 0) {
 			createWindow();
@@ -240,6 +232,7 @@ app.whenReady().then(() => {
 
 app.on('window-all-closed', () => {
 	if (process.platform !== 'darwin') {
+		logToFile('Application closed.');
 		app.quit();
 	}
 });
