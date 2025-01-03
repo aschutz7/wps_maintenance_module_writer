@@ -22,7 +22,7 @@ const configDirectory = path.join(
 	'AppData',
 	'Local',
 	'WPS Programs',
-	'Maintenance Module Generator'
+	'FUA Sorter'
 );
 
 const errorsPath = path.join(configDirectory, 'errors.json');

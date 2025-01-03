@@ -403,7 +403,7 @@ export async function generatePDF(outputFilePath, data, selectedColumns) {
 	} catch (error) {
 		console.log(error);
 
-		throw error;
+		// throw error;
 
 		return {
 			success: false,
