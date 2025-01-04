@@ -7,11 +7,30 @@ import {
 	TableRow,
 	TextRun,
 	VerticalAlign,
+	WidthType,
 	convertInchesToTwip,
 } from 'docx';
 import mammoth from 'mammoth';
 import puppeteer from 'puppeteer';
+import fs from 'fs';
+const electronPath = require('electron').exePath;
 const XLSX = require('xlsx');
+
+function logToFile(message, eventType = 'INFO', logPath) {
+	const logEntry = {
+		date: new Date().toISOString(),
+		type: eventType,
+		message,
+	};
+
+	if (!fs.existsSync(logPath)) {
+		fs.writeFileSync(logPath, JSON.stringify([logEntry], null, 2), 'utf-8');
+	} else {
+		const logs = JSON.parse(fs.readFileSync(logPath, 'utf-8'));
+		logs.push(logEntry);
+		fs.writeFileSync(logPath, JSON.stringify(logs, null, 2), 'utf-8');
+	}
+}
 
 /**
  * @typedef {Object} InspectionData
@@ -154,8 +173,14 @@ export function includeOnlyFields(json, fields) {
  * @param {Buffer} docxBuffer - The buffer containing the generated Word document.
  * @param {string} pdfFilePath - The file path to save the generated PDF.
  */
-async function convertDocxToPdf(docxBuffer, pdfFilePath) {
+async function convertDocxToPdf(
+	docxBuffer,
+	pdfFilePath,
+	logPath = './logs.json'
+) {
 	try {
+		logToFile('Starting DOCX to PDF conversion.', 'INFO', logPath);
+
 		const { value: html } = await mammoth.convertToHtml({
 			buffer: docxBuffer,
 		});
@@ -170,76 +195,104 @@ async function convertDocxToPdf(docxBuffer, pdfFilePath) {
 			);
 
 		const styledHtml = `
-		<html>
-		<head>
-			<style>
-				body {
+			<html>
+			  <head>
+				<style>
+				  body {
 					font-family: Arial, sans-serif;
 					margin: 20px;
-				}
-				table {
+				  }
+				  table {
 					width: 100%;
 					border-collapse: collapse;
 					margin-top: 25px;
 					margin-bottom: 20px;
-					table-layout: fixed; /* Ensures the table layout respects column widths */
-				}
-				th, td {
+					table-layout: fixed;
+				  }
+				  th, td {
 					border: 1px solid #000000;
-					padding: 8px;
+					padding: 12px;
 					text-align: left;
 					overflow-wrap: break-word;
 					word-wrap: break-word;
-					word-break: break-word;
-				}
-				th {
-					background-color: #f2f2f2;
-				}
-				/* Ensure the description column is 1/3 of the table width */
-				th.description-issue, td.description-issue {
-					width: 33.33%; /* 1/3 of the table width */
-				}
-				/* Allow remaining columns to take up the remaining space */
-				th, td {
-					width: auto;
-				}
-				.bridge-section {
+					word-break: normal;
+					vertical-align: top;
+					line-height: 1.4;
+				  }
+				  th {
+					white-space: normal;
+					min-width: 80px;
+				  }
+				  th, td {
+					min-width: 15%;
+					font-size: 12px;
+				  }
+				  th.description-issue, td.description-issue {
+					width: 45%;
+					min-width: 250px;
+				  }
+				  .bridge-section {
 					margin-bottom: 20px;
-				}
-				.bridge-id {
+				  }
+				  .bridge-id {
 					margin-bottom: 35px;
 					display: block;
-				}
-			</style>
-		</head>
-		<body>
-			${sections
-				.map((section, index) => {
-					const formattedSection = section
-						.trim()
-						.replace(
-							/(Bridge ID:[^<]*)/,
-							'<span class="bridge-id">$1</span>'
+					font-size: 15px;
+				  }
+				</style>
+			  </head>
+			  <body>
+				${sections
+					.map((section, index) => {
+						let formattedSection = section
+							.trim()
+							.replace(
+								/(Bridge ID:[^<]*)/,
+								'<span class="bridge-id">$1</span>'
+							);
+
+						formattedSection = formattedSection.replace(
+							/<th>(Desc. of Issue)<\/th>/,
+							'<th class="description-issue">$1</th>'
 						);
 
-					return `
-						<div class="bridge-section" ${
+						formattedSection = formattedSection.replace(
+							/(<td[^>]*>)((?:(?!<\/td>).)*Desc\. of Issue(?:(?!<\/td>).)*)<\/td>/g,
+							'<td class="description-issue">$2</td>'
+						);
+
+						return `
+					  <div class="bridge-section" ${
 							index < sections.length - 1
 								? 'style="page-break-after: always;"'
 								: ''
 						}>
-							${formattedSection}
-						</div>
+						${formattedSection}
+					  </div>
 					`;
-				})
-				.join('')}
-		</body>
-		</html>
-	`;
+					})
+					.join('')}
+			  </body>
+			</html>
+		  `;
 
-		const browser = await puppeteer.launch();
+		// fs.writeFileSync('styled_output.html', styledHtml, 'utf8');
+
+		const browser = await puppeteer.launch({
+			executablePath: electronPath,
+			headless: true,
+		});
 		const page = await browser.newPage();
 		await page.setContent(styledHtml);
+
+		await page.addStyleTag({
+			content: `
+				table th.description-issue, table td.description-issue {
+					width: 40% !important;
+				}
+			`,
+		});
+
 		await page.pdf({
 			path: pdfFilePath,
 			format: 'A4',
@@ -252,7 +305,19 @@ async function convertDocxToPdf(docxBuffer, pdfFilePath) {
 			},
 		});
 		await browser.close();
+
+		logToFile(
+			`PDF successfully generated from DOCX buffer: ${pdfFilePath}`,
+			'INFO',
+			logPath
+		);
 	} catch (error) {
+		logToFile(
+			`Error in convertDocxToPdf: ${error.message}`,
+			'ERROR',
+			logPath
+		);
+		console.log(error);
 		throw error;
 	}
 }
@@ -270,12 +335,16 @@ async function convertDocxToPdf(docxBuffer, pdfFilePath) {
  *
  * @returns {Promise<{ success: boolean; message: string }>} - A state object that indicates whether the PDF generation was successful or not, along with the success or error message.
  */
-export async function generatePDF(outputFilePath, data, selectedColumns) {
+export async function generatePDF(
+	outputFilePath,
+	data,
+	selectedColumns,
+	logPath = './logs.json'
+) {
 	const columnHeaderMap = {
 		'Bridge Component(Report)': 'Bridge Component',
 		'Repair Category(Report)': 'Repair Category',
 		'Description of Issue(Report)': 'Desc. of Issue',
-		'Workflow Stage': 'Workflow Stage',
 	};
 
 	const columns =
@@ -283,6 +352,8 @@ export async function generatePDF(outputFilePath, data, selectedColumns) {
 		(Object.values(data)[0]?.[0]
 			? Object.keys(Object.values(data)[0][0])
 			: []);
+
+	const columnTitles = columns.map((col) => columnHeaderMap[col] || col);
 
 	function formatTextWithNewlines(text) {
 		if (!text || !String(text)) return [];
@@ -301,25 +372,20 @@ export async function generatePDF(outputFilePath, data, selectedColumns) {
 		const table = new Table({
 			rows: [
 				new TableRow({
-					children: columns.map((col) => {
+					children: columnTitles.map((title, index) => {
 						return new TableCell({
-							children: [
-								new Paragraph({
-									text: columnHeaderMap[col] || col,
-									style: 'Text',
-								}),
-							],
-							verticalAlign: VerticalAlign.CENTER,
-							margins: {
-								top: convertInchesToTwip(0.05),
-								bottom: convertInchesToTwip(0.05),
-								left: convertInchesToTwip(0.05),
-								right: convertInchesToTwip(0.05),
-							},
-							class:
-								col === 'Description of Issue(Report)'
-									? 'description-issue'
-									: '',
+							width:
+								index ===
+								columns.indexOf('Description of Issue(Report)')
+									? {
+											size: 50,
+											type: WidthType.PERCENTAGE,
+									  }
+									: {
+											size: 100 / columnTitles.length,
+											type: WidthType.PERCENTAGE,
+									  },
+							children: [new Paragraph({ text: title })],
 						});
 					}),
 				}),
@@ -327,6 +393,19 @@ export async function generatePDF(outputFilePath, data, selectedColumns) {
 					return new TableRow({
 						children: rowData.map((cellData, index) => {
 							return new TableCell({
+								width:
+									index ===
+									columns.indexOf(
+										'Description of Issue(Report)'
+									)
+										? {
+												size: 50,
+												type: WidthType.PERCENTAGE,
+										  }
+										: {
+												size: 100 / columnTitles.length,
+												type: WidthType.PERCENTAGE,
+										  },
 								children: formatTextWithNewlines(cellData),
 								verticalAlign: VerticalAlign.CENTER,
 								margins: {
@@ -393,17 +472,28 @@ export async function generatePDF(outputFilePath, data, selectedColumns) {
 
 	try {
 		Packer.toBuffer(doc).then(async (buffer) => {
-			await convertDocxToPdf(buffer, outputFilePath);
+			logToFile(
+				`Attempting to convert DOCX buffer to PDF at: ${outputFilePath}`,
+				'INFO',
+				logPath
+			);
+			await convertDocxToPdf(buffer, outputFilePath, logPath);
 
+			logToFile(
+				'PDF generated successfully from DOCX buffer',
+				'INFO',
+				logPath
+			);
 			return {
 				success: true,
 				message: `Successfully generated PDF of data at ${outputFilePath}`,
 			};
 		});
 	} catch (error) {
+		logToFile(`Error in generatePDF: ${error.message}`, 'ERROR', logPath);
 		console.log(error);
 
-		// throw error;
+		throw error;
 
 		return {
 			success: false,

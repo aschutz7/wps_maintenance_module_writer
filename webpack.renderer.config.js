@@ -23,5 +23,8 @@ module.exports = {
 	},
 	externals: {
 		xlsx: 'commonjs xlsx',
+		docx: 'commonjs docx',
+		mammoth: 'commonjs mammoth',
+		puppeteer: 'commonjs puppeteer',
 	},
 };

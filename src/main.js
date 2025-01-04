@@ -184,7 +184,12 @@ ipcMain.handle(
 				formattedData,
 				selectedColumns
 			);
-			await generatePDF(outputFile, filteredData, selectedColumns);
+			await generatePDF(
+				outputFile,
+				filteredData,
+				selectedColumns,
+				logPath
+			);
 			logToFile('PDF generated successfully.');
 			return { success: true, message: 'PDF generated successfully!' };
 		} catch (error) {
