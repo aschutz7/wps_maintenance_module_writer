@@ -25,6 +25,6 @@ module.exports = {
 		xlsx: 'commonjs xlsx',
 		docx: 'commonjs docx',
 		mammoth: 'commonjs mammoth',
-		puppeteer: 'commonjs puppeteer',
+		'pdf-lib': 'commonjs pdf-lib',
 	},
 };

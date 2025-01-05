@@ -279,7 +279,8 @@ async function convertDocxToPdf(
 		// fs.writeFileSync('styled_output.html', styledHtml, 'utf8');
 
 		const browser = await puppeteer.launch({
-			executablePath: electronPath,
+			executablePath: puppeteer.executablePath(),
+			userDataDir: './puppeteer-cache',
 			headless: true,
 		});
 		const page = await browser.newPage();
@@ -341,11 +342,12 @@ export async function generatePDF(
 	selectedColumns,
 	logPath = './logs.json'
 ) {
-	const columnHeaderMap = {
-		'Bridge Component(Report)': 'Bridge Component',
-		'Repair Category(Report)': 'Repair Category',
-		'Description of Issue(Report)': 'Desc. of Issue',
-	};
+	const cleanHeader = (header) => header.replace(/\(Report\)/g, '').trim();
+
+	const columnHeaderMap = {};
+	for (const col of selectedColumns || []) {
+		columnHeaderMap[col] = cleanHeader(col);
+	}
 
 	const columns =
 		selectedColumns ||
