@@ -11,9 +11,9 @@ import {
 	convertInchesToTwip,
 } from 'docx';
 import mammoth from 'mammoth';
-import puppeteer from 'puppeteer';
+import puppeteer from 'puppeteer-core';
 import fs from 'fs';
-const electronPath = require('electron').exePath;
+
 const XLSX = require('xlsx');
 
 function logToFile(message, eventType = 'INFO', logPath) {
@@ -169,17 +169,39 @@ export function includeOnlyFields(json, fields) {
 }
 
 /**
- * Converts docx buffer to a styled PDF using Puppeteer.
- * @param {Buffer} docxBuffer - The buffer containing the generated Word document.
- * @param {string} pdfFilePath - The file path to save the generated PDF.
+ * Ensures Puppeteer has a valid Chromium installation.
  */
-async function convertDocxToPdf(
-	docxBuffer,
-	pdfFilePath,
-	logPath = './logs.json'
-) {
+async function ensureChromiumInstalled() {
+	const chromiumPaths = {
+		win32: 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
+		darwin: '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
+		linux: '/usr/bin/google-chrome',
+	};
+
+	const executablePath = chromiumPaths[process.platform];
+
+	if (!fs.existsSync(executablePath)) {
+		throw new Error(
+			`Chromium/Chrome executable not found. Please install Chrome or specify the path manually.`
+		);
+	}
+
+	return executablePath;
+}
+
+/**
+ * Converts a DOCX file buffer to a PDF using Puppeteer.
+ *
+ * @param {Buffer} docxBuffer - The DOCX file buffer.
+ * @param {string} outputFilePath - The desired PDF output path.
+ * @param {string} logPath - Path to save log messages.
+ */
+async function convertDocxToPdf(docxBuffer, outputFilePath, logPath) {
+	let executablePath;
+
 	try {
 		logToFile('Starting DOCX to PDF conversion.', 'INFO', logPath);
+		executablePath = await ensureChromiumInstalled();
 
 		const { value: html } = await mammoth.convertToHtml({
 			buffer: docxBuffer,
@@ -279,8 +301,7 @@ async function convertDocxToPdf(
 		// fs.writeFileSync('styled_output.html', styledHtml, 'utf8');
 
 		const browser = await puppeteer.launch({
-			executablePath: puppeteer.executablePath(),
-			userDataDir: './puppeteer-cache',
+			executablePath: executablePath,
 			headless: true,
 		});
 		const page = await browser.newPage();
@@ -295,7 +316,7 @@ async function convertDocxToPdf(
 		});
 
 		await page.pdf({
-			path: pdfFilePath,
+			path: outputFilePath,
 			format: 'A4',
 			printBackground: true,
 			margin: {
@@ -308,7 +329,7 @@ async function convertDocxToPdf(
 		await browser.close();
 
 		logToFile(
-			`PDF successfully generated from DOCX buffer: ${pdfFilePath}`,
+			`PDF successfully generated from DOCX buffer: ${outputFilePath}`,
 			'INFO',
 			logPath
 		);
