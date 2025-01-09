@@ -404,6 +404,13 @@ export async function generateFile(
 								type: WidthType.PERCENTAGE,
 							},
 							children: [new Paragraph({ text: title })],
+							verticalAlign: VerticalAlign.CENTER,
+							margins: {
+								top: convertInchesToTwip(0.05),
+								bottom: convertInchesToTwip(0.05),
+								left: convertInchesToTwip(0.05),
+								right: convertInchesToTwip(0.05),
+							},
 						});
 					}),
 				}),

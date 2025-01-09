@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Sidebar from './Sidebar.jsx';
 
 export default function Generator() {
@@ -9,6 +9,18 @@ export default function Generator() {
 	const [progress, setProgress] = useState(0);
 	const [availableColumns, setAvailableColumns] = useState([]);
 	const [selectedColumns, setSelectedColumns] = useState([]);
+
+	useEffect(() => {
+		const outputFileName = `maintenance_report.${outputFormat}`;
+		const updatedFilePath = `${outputFile.replace(
+			/\\[^\\]*$/,
+			''
+		)}\\${outputFileName}`;
+
+		if (outputFile && updatedFilePath !== outputFile) {
+			setOutputFile(updatedFilePath);
+		}
+	}, [outputFormat]);
 
 	const loadSavedColumns = async () => {
 		const savedColumns = await window.electron.loadConfig();
@@ -282,6 +294,13 @@ export default function Generator() {
 							<option value='pdf'>PDF</option>
 							<option value='docx'>DOCX</option>
 						</select>
+						{outputFormat === 'docx' && (
+							<p className='mt-2 text-sm text-yellow-400'>
+								Warning: DOCX output will not have correctly
+								sized tables, but you will be able to easily
+								resize them yourself.
+							</p>
+						)}
 					</div>
 
 					<div>
