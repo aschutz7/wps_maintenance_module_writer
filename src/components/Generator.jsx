@@ -4,6 +4,7 @@ import Sidebar from './Sidebar.jsx';
 export default function Generator() {
 	const [excelFile, setExcelFile] = useState(null);
 	const [outputFile, setOutputFile] = useState('');
+	const [outputFormat, setOutputFormat] = useState('pdf');
 	const [generating, setGenerating] = useState(false);
 	const [progress, setProgress] = useState(0);
 	const [availableColumns, setAvailableColumns] = useState([]);
@@ -71,26 +72,45 @@ export default function Generator() {
 
 	const handleGenerate = async () => {
 		if (generating) {
-			alert('You are already generating a PDF. Please wait.');
+			alert('You are already generating a file. Please wait.');
 			return;
 		}
 		setGenerating(true);
 		setProgress(0);
 
+		const progressInterval = setInterval(() => {
+			setProgress((prevProgress) => {
+				if (prevProgress < 100) {
+					return prevProgress + Math.random() * 10 + 1;
+				} else {
+					clearInterval(progressInterval);
+					return 100;
+				}
+			});
+		}, 1000);
+
 		try {
-			const result = await window.electron.generatePDF(
+			const result = await window.electron.generateFile(
 				excelFile,
 				outputFile,
-				selectedColumns
+				selectedColumns,
+				outputFormat
 			);
 			setGenerating(false);
 
+			window.scrollTo(0, 0);
+			document.body.style.overflow = 'auto';
+
 			if (result && result.success) {
-				alert(`PDF has been generated: ${result.message}`);
+				alert(
+					`${outputFormat.toUpperCase()} has been generated: ${
+						result.message
+					}`
+				);
 			}
 		} catch (error) {
-			console.error('Error generating PDF:', error);
-			alert('An error occurred while generating the PDF.');
+			console.error(`Error generating ${outputFormat}:`, error);
+			alert(`An error occurred while generating the ${outputFormat}.`);
 			setGenerating(false);
 		}
 	};
@@ -98,7 +118,7 @@ export default function Generator() {
 	const handleSelectOutputFolder = async () => {
 		const folderPath = await window.electron.selectOutputFolder();
 		if (folderPath) {
-			const outputFileName = 'maintenance_report.pdf';
+			const outputFileName = `maintenance_report.${outputFormat}`;
 			setOutputFile(`${folderPath}\\${outputFileName}`);
 		}
 	};
@@ -117,7 +137,7 @@ export default function Generator() {
 	};
 
 	const isGenerateDisabled =
-		!excelFile || !outputFile || selectedColumns.length === 0;
+		!excelFile || !outputFile || selectedColumns.length === 0 || generating;
 
 	const getDisabledMessage = () => {
 		if (!excelFile) return 'Please select an Excel file.';
@@ -137,7 +157,7 @@ export default function Generator() {
 					</h1>
 					<p className='text-lg'>
 						Generate and format maintenance module data into clean
-						PDFs
+						PDFs or DOCX
 					</p>
 				</header>
 				<main className='max-w-3xl mx-auto space-y-6'>
@@ -147,7 +167,12 @@ export default function Generator() {
 						</label>
 						<button
 							onClick={handleFileChange}
-							className='w-full p-2 rounded bg-blue-500 text-white hover:bg-blue-600'
+							disabled={generating}
+							className={`w-full p-2 rounded bg-blue-500 text-white hover:bg-blue-600 ${
+								generating
+									? 'cursor-not-allowed bg-gray-600'
+									: ''
+							}`}
 						>
 							Select Excel File
 						</button>
@@ -167,29 +192,47 @@ export default function Generator() {
 							<div className='flex items-center gap-4 mb-4'>
 								<button
 									onClick={() =>
-										setSelectedColumns([
-											...availableColumns,
-										])
+										setSelectedColumns([availableColumns])
 									}
-									className='py-2 px-4 rounded bg-green-500 text-white hover:bg-green-600'
+									disabled={generating}
+									className={`py-2 px-4 rounded bg-green-500 text-white hover:bg-green-600 ${
+										generating
+											? 'cursor-not-allowed bg-gray-600'
+											: ''
+									}`}
 								>
 									Select All
 								</button>
 								<button
 									onClick={() => setSelectedColumns([])}
-									className='py-2 px-4 rounded bg-red-500 text-white hover:bg-red-600'
+									disabled={generating}
+									className={`py-2 px-4 rounded bg-red-500 text-white hover:bg-red-600 ${
+										generating
+											? 'cursor-not-allowed bg-gray-600'
+											: ''
+									}`}
 								>
 									Clear Selection
 								</button>
 								<button
 									onClick={saveSelectedColumns}
-									className='py-2 px-4 rounded bg-blue-500 text-white hover:bg-blue-600'
+									disabled={generating}
+									className={`py-2 px-4 rounded bg-blue-500 text-white hover:bg-blue-600 ${
+										generating
+											? 'cursor-not-allowed bg-gray-600'
+											: ''
+									}`}
 								>
 									Save Selection
 								</button>
 								<button
 									onClick={loadSavedColumns}
-									className='py-2 px-4 rounded bg-yellow-500 text-white hover:bg-yellow-600'
+									disabled={generating}
+									className={`py-2 px-4 rounded bg-yellow-500 text-white hover:bg-yellow-600 ${
+										generating
+											? 'cursor-not-allowed bg-gray-600'
+											: ''
+									}`}
 								>
 									Load Saved
 								</button>
@@ -212,6 +255,7 @@ export default function Generator() {
 											onChange={() =>
 												handleColumnSelection(column)
 											}
+											disabled={generating}
 											className='mr-2'
 										/>
 										<label htmlFor={column}>{column}</label>
@@ -227,19 +271,40 @@ export default function Generator() {
 
 					<div>
 						<label className='block mb-2 text-lg'>
+							Select Output Format
+						</label>
+						<select
+							value={outputFormat}
+							onChange={(e) => setOutputFormat(e.target.value)}
+							disabled={generating}
+							className='w-full p-2 rounded bg-gray-700 text-white'
+						>
+							<option value='pdf'>PDF</option>
+							<option value='docx'>DOCX</option>
+						</select>
+					</div>
+
+					<div>
+						<label className='block mb-2 text-lg'>
 							Select Output Location
 						</label>
 						<div className='flex space-x-4'>
 							<input
 								type='text'
-								placeholder='Enter output PDF file path'
+								placeholder={`Enter output ${outputFormat.toUpperCase()} file path`}
 								value={outputFile}
 								onChange={(e) => setOutputFile(e.target.value)}
+								disabled={generating}
 								className='w-full p-2 rounded bg-gray-700 text-white'
 							/>
 							<button
 								onClick={handleSelectOutputFolder}
-								className='bg-blue-500 hover:bg-blue-600 text-white py-2 px-4 rounded'
+								disabled={generating}
+								className={`bg-blue-500 hover:bg-blue-600 text-white py-2 px-4 rounded ${
+									generating
+										? 'cursor-not-allowed bg-gray-600'
+										: ''
+								}`}
 							>
 								Select Folder
 							</button>
@@ -255,7 +320,7 @@ export default function Generator() {
 								: 'bg-blue-500 hover:bg-blue-600 text-white'
 						}`}
 					>
-						Generate PDF
+						Generate {outputFormat.toUpperCase()}
 					</button>
 
 					{isGenerateDisabled && !generating && (
@@ -265,13 +330,17 @@ export default function Generator() {
 					)}
 
 					{generating && (
-						<div className='mt-4'>
-							<p className='text-lg mb-2'>Generating PDF...</p>
-							<div className='w-full bg-gray-700 rounded'>
-								<div
-									className='bg-blue-500 h-2 rounded animated-progress-bar'
-									style={{ width: `${progress}%` }}
-								></div>
+						<div className='absolute inset-0 bg-black opacity-50 flex justify-center items-center'>
+							<div className='text-white'>
+								<p className='text-lg mb-2'>
+									Generating {outputFormat.toUpperCase()}...
+								</p>
+								<div className='w-full bg-gray-700 rounded'>
+									<div
+										className='bg-blue-500 h-2 rounded'
+										style={{ width: `${progress}%` }}
+									></div>
+								</div>
 							</div>
 						</div>
 					)}

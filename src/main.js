@@ -5,12 +5,10 @@ import os from 'os';
 import started from 'electron-squirrel-startup';
 import { updateElectronApp, UpdateSourceType } from 'update-electron-app';
 import {
-	validateFields,
 	convertExcelToJSON,
 	formatJSONData,
 	includeOnlyFields,
-	convertDocxToPdf,
-	generatePDF,
+	generateFile,
 } from './lib';
 
 if (started) {
@@ -174,26 +172,36 @@ ipcMain.handle('set-config', (event, config) => {
 });
 
 ipcMain.handle(
-	'generate-pdf',
-	async (event, excelFilePath, outputFile, selectedColumns) => {
+	'generate-file',
+	async (event, excelFilePath, outputFile, selectedColumns, outputFormat) => {
 		try {
-			logToFile(`Generating PDF for: ${excelFilePath}`);
+			logToFile(
+				`Generating ${outputFormat.toUpperCase()} for: ${excelFilePath}`
+			);
+
 			const jsonData = await convertExcelToJSON(excelFilePath);
+
 			const formattedData = formatJSONData(jsonData);
 			const filteredData = includeOnlyFields(
 				formattedData,
 				selectedColumns
 			);
-			await generatePDF(
+
+			const result = await generateFile(
 				outputFile,
 				filteredData,
 				selectedColumns,
+				outputFormat,
 				logPath
 			);
-			logToFile('PDF generated successfully.');
-			return { success: true, message: 'PDF generated successfully!' };
+
+			logToFile(`${outputFormat.toUpperCase()} generated successfully.`);
+			return result;
 		} catch (error) {
 			await logErrorToFile(error);
+
+			throw error;
+
 			return { success: false, message: error.message };
 		}
 	}

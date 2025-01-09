@@ -11,12 +11,13 @@ contextBridge.exposeInMainWorld('electron', {
 	selectOutputFolder: () => ipcRenderer.invoke('select-output-folder'),
 	convertExcelToJSON: (filePath) =>
 		ipcRenderer.invoke('convertExcelToJSON', filePath),
-	generatePDF: (excelFilePath, outputFile, selectedColumns) =>
+	generateFile: (excelFilePath, outputFile, selectedColumns, outputFormat) =>
 		ipcRenderer.invoke(
-			'generate-pdf',
+			'generate-file',
 			excelFilePath,
 			outputFile,
-			selectedColumns
+			selectedColumns,
+			outputFormat
 		),
 	checkForUpdates: () => ipcRenderer.send('check-for-updates'),
 });

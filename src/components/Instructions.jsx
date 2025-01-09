@@ -20,11 +20,11 @@ export default function Instructions() {
 						<p>
 							Begin by selecting the Excel file containing the
 							maintenance-related description data you want to
-							format into a PDF.
+							format into a PDF or DOCX file.
 						</p>
 						<p className='text-sm text-gray-400'>
 							The file should have column headers that can be
-							selected for inclusion in the final PDF.
+							selected for inclusion in the final output.
 						</p>
 					</section>
 
@@ -34,8 +34,8 @@ export default function Instructions() {
 						</h2>
 						<p>
 							After uploading your file, choose the columns you
-							want to include in the PDF by checking the boxes
-							next to each column.
+							want to include in the PDF or DOCX by checking the
+							boxes next to each column.
 						</p>
 						<p className='text-sm text-gray-400'>
 							You can save your selected columns for future use or
@@ -45,17 +45,32 @@ export default function Instructions() {
 
 					<section>
 						<h2 className='text-2xl font-semibold mb-2'>
-							Step 3: Select Output Folder and Generate PDF
+							Step 3: Select Output Format and Folder
 						</h2>
 						<p>
-							Choose the folder where you want to save the
-							generated PDF. Once you're ready, click the
-							"Generate PDF" button to create your formatted
-							maintenance description PDF.
+							Choose whether you want to generate a PDF or DOCX
+							file using the slider or toggle option. Then, select
+							the folder where you want to save the generated
+							file.
 						</p>
 						<p className='text-sm text-gray-400'>
 							Make sure to save your output file path before
-							generating the PDF.
+							generating the file.
+						</p>
+					</section>
+
+					<section>
+						<h2 className='text-2xl font-semibold mb-2'>
+							Step 4: Generate the File
+						</h2>
+						<p>
+							Once you've selected the output format and folder,
+							click the "Generate" button to create your formatted
+							maintenance description file (PDF or DOCX).
+						</p>
+						<p className='text-sm text-gray-400'>
+							The generation progress will be displayed, and once
+							completed, your file will be ready for use.
 						</p>
 					</section>
 
@@ -67,7 +82,7 @@ export default function Instructions() {
 							}
 							className='bg-blue-500 hover:bg-blue-600 text-white py-2 px-4 rounded shadow-lg mt-2'
 						>
-							Start Generating
+							Start Sorting
 						</button>
 					</footer>
 				</main>
