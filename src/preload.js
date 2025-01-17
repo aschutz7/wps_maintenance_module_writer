@@ -20,4 +20,5 @@ contextBridge.exposeInMainWorld('electron', {
 			outputFormat
 		),
 	checkForUpdates: () => ipcRenderer.send('check-for-updates'),
+	getVersion: () => ipcRenderer.invoke('get-version'),
 });

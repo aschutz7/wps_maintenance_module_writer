@@ -10,10 +10,19 @@ import {
 	includeOnlyFields,
 	generateFile,
 } from './lib';
+import * as Sentry from '@sentry/electron';
 
 if (started) {
 	app.quit();
 }
+
+Sentry.init({
+	dsn: 'https://7b27d95457df083037806718b343daa4@o4508656655269888.ingest.us.sentry.io/4508656656580608',
+	// debug: true,
+});
+Sentry.setUser({
+	username: '',
+});
 
 const configDirectory = path.join(
 	os.homedir(),
@@ -44,6 +53,10 @@ function logToFile(message, eventType = 'INFO') {
 		logs.push(logEntry);
 		fs.writeFileSync(logPath, JSON.stringify(logs, null, 2), 'utf-8');
 	}
+
+	if (eventType === 'ERROR') {
+		Sentry.captureMessage(message, 'error');
+	}
 }
 
 async function logErrorToFile(error) {
@@ -63,6 +76,9 @@ async function logErrorToFile(error) {
 		fs.writeFileSync(errorsPath, JSON.stringify(errors, null, 2), 'utf-8');
 	}
 	logToFile(`Error logged: ${error.message}`, 'ERROR');
+	if (eventType === 'ERROR') {
+		Sentry.captureMessage(JSON.stringify(error), 'fatal');
+	}
 }
 
 const configFilePath = path.join(configDirectory, 'config.json');
@@ -83,6 +99,10 @@ const writeConfig = (config) => {
 	logToFile('Configuration updated.');
 };
 
+ipcMain.handle('get-version', () => {
+	return app.getVersion();
+});
+
 ipcMain.handle('get-selected-columns', () => {
 	const config = readConfig();
 	return config.selectedColumns;
@@ -95,6 +115,7 @@ ipcMain.handle('set-selected-columns', (event, selectedColumns) => {
 });
 
 ipcMain.handle('check-for-updates', () => {
+	randomFunction();
 	logToFile('Checking for updates.');
 	updateElectronApp();
 });
@@ -199,8 +220,6 @@ ipcMain.handle(
 			return result;
 		} catch (error) {
 			await logErrorToFile(error);
-
-			throw error;
 
 			return { success: false, message: error.message };
 		}

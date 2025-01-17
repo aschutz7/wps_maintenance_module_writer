@@ -94,3 +94,9 @@ publish.cmd
 
 # Electron-Forge
 out/
+
+# Sentry Config File
+.sentryclirc
+
+# Sentry Config File
+.env.sentry-build-plugin

@@ -21,6 +21,7 @@ module.exports = {
 	module: {
 		rules,
 	},
+	devtool: 'source-map',
 	externals: {
 		xlsx: 'commonjs xlsx',
 		docx: 'commonjs docx',

@@ -1,16 +1,23 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Menu, X, Home, Info, FileText, Bug } from 'lucide-react';
-
-const openBugReport = () => {
-	window.electron.openExternal('https://forms.gle/iCbg2LCn6wWU9fsS8');
-};
 
 const Sidebar = ({ width = 175, isCollapsible = true, className = '' }) => {
 	const [isOpen, setIsOpen] = useState(true);
 	const [sidebarWidth, setSidebarWidth] = useState(width);
 	const [isResizing, setIsResizing] = useState(false);
 	const [isModalOpen, setIsModalOpen] = useState(false);
+	const [appVersion, setAppVersion] = useState('');
+
+	useEffect(() => {
+		async function getVersion() {
+			if (window.electron?.getVersion) {
+				setAppVersion(await window.electron.getVersion());
+			}
+		}
+
+		getVersion();
+	}, []);
 
 	const toggleSidebar = () => {
 		if (isCollapsible) {
@@ -49,7 +56,11 @@ const Sidebar = ({ width = 175, isCollapsible = true, className = '' }) => {
 					fill out a bug report form in your browser.
 				</p>
 				<button
-					onClick={openBugReport}
+					onClick={() =>
+						window.electron.openExternal(
+							'https://forms.gle/iCbg2LCn6wWU9fsS8'
+						)
+					}
 					className='px-4 py-2 mr-2 bg-blue-600 text-white rounded hover:bg-blue-500'
 				>
 					Open Bug Report Form
@@ -133,16 +144,9 @@ const Sidebar = ({ width = 175, isCollapsible = true, className = '' }) => {
 					</button>
 				</div>
 
-				{isCollapsible && (
-					<div
-						className='absolute right-0 top-1/2 w-2 h-20 bg-gray-600 cursor-col-resize hover:bg-gray-500'
-						style={{
-							transform: 'translateX(100%)',
-							userSelect: 'none',
-						}}
-						onMouseDown={startResize}
-					/>
-				)}
+				<div className='text-gray-400 text-sm mt-auto'>
+					{isOpen && appVersion && `Version: ${appVersion}`}
+				</div>
 			</div>
 
 			{isModalOpen && <Modal />}
